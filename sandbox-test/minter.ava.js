@@ -17,9 +17,11 @@ test.beforeEach(async t => {
   const contract = await root.createSubAccount('test-account');
 
   // Get wasm file path from package.json test script in folder above
-  await contract.deploy(
-    process.argv[2],
-  );
+  // await contract.deploy(
+  //   process.argv[2],
+  // );
+  await contract.deploy('./build/minter.wasm');
+
 
   // Save state for test runs, it is unique for each test
   t.context.accounts = { root, contract };
@@ -34,5 +36,6 @@ test.afterEach.always(async (t) => {
 test('returns the default greeting', async (t) => {
   const { contract } = t.context.accounts;
   const greeting = await contract.view('get_greeting', {});
+  console.log(greeting)
   t.is(greeting, 'Minter');
 });

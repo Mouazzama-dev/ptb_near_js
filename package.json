@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "near-sdk-js build src/contract.ts build/hello_near.wasm && near-sdk-js build src/minter.ts build/minter.wasm",
-    "test": "$npm_execpath run build && ava -- ./build/hello_near.wasm && $npm_execpath run build && ava -- ./build/minter.wasm"
+    "test": "$npm_execpath run build && ava -- ./build/hello_near.wasm && ./build/minter.wasm"
   },
   "dependencies": {
     "near-sdk-js": "2.0.0"
