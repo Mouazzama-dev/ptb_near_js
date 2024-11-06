@@ -1,1 +1,2 @@
-DEFINE_NEAR_METHOD(get_greeting)
+DEFINE_NEAR_METHOD(getEmissionsAccount)
+DEFINE_NEAR_METHOD(initialize)

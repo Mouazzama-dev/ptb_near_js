@@ -8,7 +8,8 @@
     "test": "$npm_execpath run build && ava -- ./build/hello_near.wasm && ./build/minter.wasm"
   },
   "dependencies": {
-    "near-sdk-js": "2.0.0"
+    "near-sdk-js": "2.0.0",
+    "openblimp": "^0.1.16"
   },
   "devDependencies": {
     "ava": "^6.1.3",

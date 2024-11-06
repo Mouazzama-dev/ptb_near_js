@@ -2317,6 +2317,14 @@ function bytes(s) {
   return env.latin1_string_to_uint8array(s);
 }
 /**
+ * Convert a Uint8Array to string, each uint8 to the single character of that char code
+ * @param a - Uint8Array to convert
+ * @returns result string
+ */
+function str(a) {
+  return env.uint8array_to_latin1_string(a);
+}
+/**
  * Encode the string to Uint8Array with UTF-8 encoding
  * @param s - String to encode
  * @returns result Uint8Array
@@ -2368,6 +2376,28 @@ var PromiseError;
 const U64_MAX = 2n ** 64n - 1n;
 const EVICTED_REGISTER = U64_MAX - 1n;
 /**
+ * Returns the account ID of the account that called the function.
+ * Can only be called in a call or initialize function.
+ */
+function predecessorAccountId() {
+  env.predecessor_account_id(0);
+  return str(env.read_register(0));
+}
+/**
+ * Returns the account ID of the current contract - the contract that is being executed.
+ */
+function currentAccountId() {
+  env.current_account_id(0);
+  return str(env.read_register(0));
+}
+/**
+ * Returns the amount of NEAR attached to this function call.
+ * Can only be called in payable functions.
+ */
+function attachedDeposit() {
+  return env.attached_deposit();
+}
+/**
  * Reads the value from NEAR storage that is stored under the provided key.
  *
  * @param key - The key to read from storage.
@@ -2380,6 +2410,18 @@ function storageReadRaw(key) {
   return env.read_register(0);
 }
 /**
+ * Reads the utf-8 string value from NEAR storage that is stored under the provided key.
+ *
+ * @param key - The utf-8 string key to read from storage.
+ */
+function storageRead(key) {
+  const ret = storageReadRaw(encode(key));
+  if (ret !== null) {
+    return decode(ret);
+  }
+  return null;
+}
+/**
  * Writes the provided bytes to NEAR storage under the provided key.
  *
  * @param key - The key under which to store the value.
@@ -2387,6 +2429,15 @@ function storageReadRaw(key) {
  */
 function storageWriteRaw(key, value) {
   return env.storage_write(key, value, EVICTED_REGISTER) === 1n;
+}
+/**
+ * Writes the provided utf-8 string to NEAR storage under the provided key.
+ *
+ * @param key - The utf-8 string key under which to store the value.
+ * @param value - The utf-8 string value to store.
+ */
+function storageWrite(key, value) {
+  return storageWriteRaw(encode(key), encode(value));
 }
 /**
  * Returns the arguments passed to the current smart contract call.
@@ -2412,6 +2463,26 @@ function view(_empty) {
   return function (_target, _key, _descriptor
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   ) {};
+}
+function call({
+  privateFunction = false,
+  payableFunction = false
+}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return function (_target, _key, descriptor) {
+    const originalMethod = descriptor.value;
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    descriptor.value = function (...args) {
+      if (privateFunction && predecessorAccountId() !== currentAccountId()) {
+        throw new Error("Function is private");
+      }
+      if (!payableFunction && attachedDeposit() > 0n) {
+        throw new Error("Function is not payable");
+      }
+      return originalMethod.apply(this, args);
+    };
+  };
 }
 function NearBindgen({
   requireInit = false,
@@ -2462,18 +2533,53 @@ function NearBindgen({
   };
 }
 
-var _dec, _dec2, _class, _class2;
-let Minter = (_dec = NearBindgen({}), _dec2 = view(), _dec(_class = (_class2 = class Minter {
-  static schema = {
-    greeting: 'string'
-  };
-  greeting = 'Minter';
-  // This method is read-only and can be called for free
-  get_greeting() {
-    return this.greeting;
+var _dec, _dec2, _dec3, _class, _class2;
+let Minter = (_dec = NearBindgen({}), _dec2 = call({}), _dec3 = view(), _dec(_class = (_class2 = class Minter {
+  static OWNER_KEY = 'owner';
+  static MONTH_DURATION = 30 * 24 * 60 * 60 * 1000;
+  static EMISSIONS_ACCOUNT_KEY = 'emissionsAccount';
+  static LOOT_RAFFLE_POOL_KEY = 'lootRafflePool';
+  static GLOBAL_TAPPING_POOL_KEY = 'globalTappingPool';
+
+  // Initialize emission and pool accounts and set owner
+  initialize({
+    owner
+  }) {
+    if (storageRead(Minter.OWNER_KEY)) {
+      throw new Error("Contract is already initialized");
+    }
+    storageWrite(Minter.OWNER_KEY, owner);
+    storageWrite(Minter.EMISSIONS_ACCOUNT_KEY, JSON.stringify({
+      initialEmissions: '3000000000',
+      decayFactor: 0.8705505633,
+      currentMonth: 0,
+      currentEmissions: '3000000000',
+      lastMintTimestamp: Date.now()
+    }));
+    storageWrite(Minter.LOOT_RAFFLE_POOL_KEY, JSON.stringify({
+      poolId: 1,
+      amount: '50000000000000',
+      totalAmount: '0'
+    }));
+    storageWrite(Minter.GLOBAL_TAPPING_POOL_KEY, JSON.stringify({
+      poolId: 2,
+      amount: '100000000000000'
+    }));
   }
-}, _applyDecoratedDescriptor(_class2.prototype, "get_greeting", [_dec2], Object.getOwnPropertyDescriptor(_class2.prototype, "get_greeting"), _class2.prototype), _class2)) || _class);
-function get_greeting() {
+
+  // Check if the caller is the owner
+  isOwner() {
+    const owner = storageRead(Minter.OWNER_KEY);
+    return predecessorAccountId() === owner;
+  }
+
+  // Example of a function using the isOwner check
+  getEmissionsAccount() {
+    const emissionsAccount = storageRead(Minter.EMISSIONS_ACCOUNT_KEY);
+    return emissionsAccount ? JSON.parse(emissionsAccount) : null;
+  }
+}, _applyDecoratedDescriptor(_class2.prototype, "initialize", [_dec2], Object.getOwnPropertyDescriptor(_class2.prototype, "initialize"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "getEmissionsAccount", [_dec3], Object.getOwnPropertyDescriptor(_class2.prototype, "getEmissionsAccount"), _class2.prototype), _class2)) || _class);
+function getEmissionsAccount() {
   const _state = Minter._getState();
   if (!_state && Minter._requireInit()) {
     throw new Error("Contract must be initialized");
@@ -2483,9 +2589,23 @@ function get_greeting() {
     Minter._reconstruct(_contract, _state);
   }
   const _args = Minter._getArgs();
-  const _result = _contract.get_greeting(_args);
+  const _result = _contract.getEmissionsAccount(_args);
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Minter._serialize(_result, true));
+}
+function initialize() {
+  const _state = Minter._getState();
+  if (!_state && Minter._requireInit()) {
+    throw new Error("Contract must be initialized");
+  }
+  const _contract = Minter._create();
+  if (_state) {
+    Minter._reconstruct(_contract, _state);
+  }
+  const _args = Minter._getArgs();
+  const _result = _contract.initialize(_args);
+  Minter._saveToStorage(_contract);
   if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Minter._serialize(_result, true));
 }
 
-export { get_greeting };
+export { getEmissionsAccount, initialize };
 //# sourceMappingURL=minter.js.map
