@@ -4,10 +4,11 @@
   "license": "(MIT AND Apache-2.0)",
   "type": "module",
   "scripts": {
-    "build": "near-sdk-js build src/contract.ts build/hello_near.wasm && near-sdk-js build src/minter.ts build/minter.wasm",
+    "build": "near-sdk-js build src/contract.ts build/hello_near.wasm && near-sdk-js build src/minter.ts build/minter.wasm && near-sdk-js build src/token.ts build/token.wasm",
     "test": "$npm_execpath run build && ava -- ./build/hello_near.wasm && ./build/minter.wasm"
   },
   "dependencies": {
+    "near-sdk-as": "^3.2.3",
     "near-sdk-js": "2.0.0",
     "openblimp": "^0.1.16"
   },
